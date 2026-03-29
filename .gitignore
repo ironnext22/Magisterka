@@ -1,0 +1,24 @@
+# python
+__pycache__/
+*.pyc
+
+# virtualenv
+.venv/
+
+# pycharm
+.idea/
+
+# build
+dist/
+build/
+*.egg-info/
+
+# datasets
+data/
+
+# outputs
+outputs/
+
+# system
+.DS_Store
+Thumbs.db

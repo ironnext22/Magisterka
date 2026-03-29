@@ -1,0 +1,21 @@
+project:
+  name: project
+
+paths:
+  data_raw: data/raw
+  data_interim: data/interim
+  data_processed: data/processed
+  outputs: outputs
+
+naming:
+  height_suffix: "_h"
+  seg_suffix: "_i2"
+  tex_suffix: "_t"
+  extension: ".png"
+
+dataset:
+  image_size: 512
+
+processing:
+  normalize_heightmap: true
+  convert_segmentation_to_labels: false

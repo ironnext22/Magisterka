@@ -1,0 +1,50 @@
+[project]
+name = "terrain-ai-generator"
+version = "0.1.0"
+authors = [{name = "Wiktor Kowalski"}]
+requires-python = ">=3.11"
+
+dependencies = [
+    "numpy",
+    "pandas",
+    "matplotlib",
+    "opencv-python",
+    "pillow",
+    "scikit-learn",
+    "tqdm",
+    "pyyaml",
+    "pydantic",
+    "hydra-core",
+    "panda3d",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=24.0",
+    "ruff>=0.3",
+    "pytest>=8.0",
+    "jupyter>=1.0",
+]
+ml = [
+    "tensorboard>=2.16",
+    "albumentations>=1.4",
+    "segmentation-models-pytorch>=0.3.3",
+    "torch",
+    "torchvision",
+    "torchaudio",
+]
+
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
