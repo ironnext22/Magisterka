@@ -39,9 +39,9 @@ def train_one_epoch(
         x = x.to(device)
         y = y.to(device)
 
-        optimizer.zero_grad()
+        optimizer.zero_grad(set_to_none=True)
         y_pred = model(x)
-        y_pred = torch.clamp(y_pred, 0.0, 1.0)
+        #y_pred = torch.clamp(y_pred, 0.0, 1.0)
 
         mse = criterion(y_pred, y)
         grad = gradient_loss(y_pred, y)
@@ -49,7 +49,6 @@ def train_one_epoch(
 
         loss.backward()
         optimizer.step()
-
         batch_size = x.size(0)
         running_loss += loss.item() * batch_size
         running_mse += mse.item() * batch_size
@@ -81,7 +80,7 @@ def validate_one_epoch(
         y = y.to(device)
 
         y_pred = model(x)
-        y_pred = torch.clamp(y_pred, 0.0, 1.0)
+        #y_pred = torch.clamp(y_pred, 0.0, 1.0)
 
         mse = criterion(y_pred, y)
         grad = gradient_loss(y_pred, y)
