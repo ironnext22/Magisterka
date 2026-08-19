@@ -685,18 +685,6 @@ def main() -> None:
 
     print(f"Split indices saved to: {splits_path}")
 
-    # (
-    #     train_loader,
-    #     validation_loader,
-    #     test_loader,
-    # ) = create_dataloaders(
-    #     train_dataset=train_dataset,
-    #     validation_dataset=validation_dataset,
-    #     test_dataset=test_dataset,
-    #     config=training_config,
-    #     device=device,
-    # )
-
     model_configs = [
         ModelConfig(
             name="Baseline CNN",
@@ -721,8 +709,6 @@ def main() -> None:
     all_test_results = []
 
     for model_config in model_configs:
-        # Każdy model otrzymuje tę samą inicjalizację generatorów
-        # oraz tę samą kolejność paczek treningowych.
         set_reproducibility(training_config.split_seed)
 
         (

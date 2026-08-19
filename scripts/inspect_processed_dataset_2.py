@@ -6,9 +6,6 @@ import pandas as pd
 from PIL import Image
 import matplotlib.pyplot as plt
 
-
-# Kolory klas zgodne z opisem zbioru Kaggle.
-# Jeżeli segmentacja jest zapisana jako RGB, skrypt liczy piksele według tych kolorów.
 SEGMENTATION_CLASSES = {
     (17, 141, 215): "Water",
     (225, 227, 155): "Grassland",
@@ -30,9 +27,6 @@ CLASS_ORDER = [
     "Tundra",
 ]
 
-# Fallback dla segmentacji zapisanej jako jednokanałowa mapa wartości.
-# Wartości 112, 218, 154, 137, 207, 150 i 189 odpowiadają konwersji
-# oryginalnych kolorów RGB klas do skali szarości.
 INDEX_CLASSES = {
     112: "Water",
     218: "Grassland",
@@ -43,7 +37,6 @@ INDEX_CLASSES = {
     189: "Tundra",
 }
 
-# Kolory do wizualizacji map segmentacji w pracy.
 CLASS_COLORS = {
     "Water": (17, 141, 215),
     "Grassland": (225, 227, 155),
@@ -135,12 +128,6 @@ def count_segmentation_classes(seg: np.ndarray) -> Counter:
 
 
 def colorize_segmentation(seg: np.ndarray) -> np.ndarray:
-    """Zamienia mapę segmentacji na obraz RGB w kolorach klas z opisu zbioru.
-
-    Jeśli segmentacja jest już obrazem RGB, funkcja zwraca pierwsze trzy kanały.
-    Jeśli segmentacja jest jednokanałowa, wartości pikseli są mapowane na klasy
-    przez INDEX_CLASSES, a następnie na kolory przez CLASS_COLORS.
-    """
     if seg.ndim == 3:
         return seg[..., :3]
 
@@ -150,7 +137,6 @@ def colorize_segmentation(seg: np.ndarray) -> np.ndarray:
         color = CLASS_COLORS[class_name]
         rgb[seg == index_value] = color
 
-    # Nieznane wartości zostają czarne, aby były widoczne jako potencjalny problem.
     return rgb
 
 
@@ -191,7 +177,6 @@ def visualize_sample(row: pd.Series, root: Path, out_dir: Path, filename_suffix:
 
 
 def save_combined_preview(df: pd.DataFrame, root: Path, out_dir: Path, sample_indices: list[int]) -> None:
-    """Zapisuje jedną rycinę z kilkoma próbkami: tekstura, segmentacja, heightmapa."""
     selected = [i for i in sample_indices if 0 <= i < len(df)]
     if not selected:
         return
@@ -248,8 +233,6 @@ def save_class_distribution(class_counts: Counter, out_dir: Path) -> pd.DataFram
     total = sum(class_counts.values())
     rows = []
 
-    # Najpierw zapisujemy znane klasy w ustalonej kolejności,
-    # a ewentualne nieznane wartości dopisujemy na końcu.
     ordered_names = CLASS_ORDER + sorted(
         name for name in class_counts.keys() if name not in CLASS_ORDER
     )
@@ -299,8 +282,6 @@ def main() -> None:
     height_samples_for_hist = []
     class_counts = Counter()
 
-    # Próba do histogramu, żeby nie zapychać pamięci przy dużym zbiorze.
-    # W razie potrzeby można zwiększyć lub zmniejszyć sample_stride.
     sample_stride = max(1, len(df) // 500)
 
     for i, row in df.iterrows():
@@ -380,8 +361,6 @@ def main() -> None:
     for i in range(sample_count):
         visualize_sample(df.iloc[i], processed_root, out_dir, filename_suffix="_preview")
 
-    # Rycina do pracy: kilka próbek po filtracji.
-    # Dla większej różnorodności wybieramy próbki z początku, środka i końca zbioru.
     if len(df) >= 3:
         preview_indices = [
             0,

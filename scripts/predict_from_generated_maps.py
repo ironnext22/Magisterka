@@ -21,14 +21,6 @@ def load_generated_input_tensor(
     segmentation_path: Path,
     device: torch.device,
 ) -> torch.Tensor:
-    """
-    Load generated texture and segmentation PNG files
-    and create model input tensor of shape [1, 4, H, W].
-
-    Channels:
-    - 3 x RGB texture
-    - 1 x segmentation grayscale
-    """
     with Image.open(texture_path) as img:
         texture = np.array(img.convert("RGB"), dtype=np.float32) / 255.0
 
@@ -50,8 +42,6 @@ def save_heightmap_png(height_tensor: torch.Tensor, output_path: Path) -> None:
 
     arr = height_tensor.detach().cpu().numpy()
     arr = np.clip(arr, 0.0, 1.0)
-
-    # Optional normalization for nicer visualization
     arr = arr - arr.min()
     arr = arr / (arr.max() + 1e-8)
 

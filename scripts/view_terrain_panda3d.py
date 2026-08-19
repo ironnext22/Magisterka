@@ -13,10 +13,6 @@ from projekt.visualization.panda_viewer import PandaTerrainViewer
 from projekt.models.unet import UNetTerrainModel
 
 def save_heightmap_png(height_tensor: torch.Tensor, output_path: Path) -> None:
-    """
-    Save predicted heightmap tensor [1, H, W] or [H, W] as grayscale PNG.
-    Expected input range: [0, 1]
-    """
     if height_tensor.ndim == 3:
         height_tensor = height_tensor[0]
 

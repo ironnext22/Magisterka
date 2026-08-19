@@ -98,7 +98,6 @@ def normalize(arr: np.ndarray) -> np.ndarray:
 
 
 def blur_simple(arr: np.ndarray, passes: int = 2) -> np.ndarray:
-    """Simple box blur without extra dependencies."""
     result = arr.astype(np.float32).copy()
 
     for _ in range(passes):
@@ -118,10 +117,6 @@ def fbm_noise(
     height: int,
     octaves: list[tuple[int, float]],
 ) -> np.ndarray:
-    """
-    Fractal-like noise from multiple blurred random layers.
-    octaves: list of (blur_passes, weight)
-    """
     rng = np.random.default_rng(seed)
     result = np.zeros((height, width), dtype=np.float32)
 
@@ -134,19 +129,12 @@ def fbm_noise(
 
 
 def ridged_noise(base_noise: np.ndarray) -> np.ndarray:
-    """
-    Ridged noise useful for mountain chains.
-    """
     ridged = 1.0 - np.abs(2.0 * base_noise - 1.0)
     ridged = ridged ** 1.5
     return normalize(ridged)
 
 
 def radial_continent_mask(width: int, height: int) -> np.ndarray:
-    """
-    Radial mask that promotes continent-like land in the center
-    and more ocean near edges.
-    """
     y = np.linspace(-1.0, 1.0, height, dtype=np.float32)
     x = np.linspace(-1.0, 1.0, width, dtype=np.float32)
     xx, yy = np.meshgrid(x, y)
@@ -159,14 +147,9 @@ def radial_continent_mask(width: int, height: int) -> np.ndarray:
 
 
 def generate_height_seed_map(seed: int, config: ProceduralMapConfig) -> np.ndarray:
-    """
-    Generate a more natural terrain control map:
-    continent-scale landmass + mountain ridges + local detail.
-    """
     width = config.width
     height = config.height
 
-    # Large-scale landmass structure
     continent_noise = fbm_noise(
         seed=seed,
         width=width,
@@ -197,7 +180,6 @@ def generate_height_seed_map(seed: int, config: ProceduralMapConfig) -> np.ndarr
     continents = continents + 0.08 * (coast_noise - 0.5)
     continents = normalize(continents)
 
-    # Mountain structure
     mountain_base = fbm_noise(
         seed=seed + 101,
         width=width,
@@ -262,9 +244,6 @@ def estimate_beach_mask(
     water_mask: np.ndarray,
     max_distance: int = 3,
 ) -> np.ndarray:
-    """
-    Simple beach detection: land pixels close to water become beach.
-    """
     beach = np.zeros_like(water_mask, dtype=bool)
 
     padded_water = np.pad(water_mask, ((max_distance, max_distance), (max_distance, max_distance)), mode="edge")
@@ -285,9 +264,6 @@ def estimate_beach_mask(
 
 
 def generate_moisture_map(seed: int, config: ProceduralMapConfig) -> np.ndarray:
-    """
-    Separate moisture map for more natural class distribution.
-    """
     return fbm_noise(
         seed=seed + 303,
         width=config.width,
@@ -305,14 +281,6 @@ def generate_segmentation_map(
     moisture_map: np.ndarray,
     config: ProceduralMapConfig,
 ) -> np.ndarray:
-    """
-    Classes:
-    0 water
-    1 sand
-    2 grass
-    3 rock
-    4 snow
-    """
     seg = np.full(height_seed_map.shape, 2, dtype=np.uint8)
 
     water_mask = height_seed_map < config.sea_level
@@ -324,15 +292,12 @@ def generate_segmentation_map(
     )
     seg[beach_mask & (~water_mask)] = 1
 
-    # Rock on steeper / higher areas
     rock_mask = (height_seed_map >= config.rock_level)
     seg[rock_mask] = 3
 
-    # Snow on highest areas
     snow_mask = height_seed_map >= config.snow_level
     seg[snow_mask] = 4
 
-    # Optional drier highlands can become rock earlier
     dry_rock_mask = (
         (height_seed_map >= config.grass_level)
         & (height_seed_map < config.rock_level)
@@ -342,7 +307,6 @@ def generate_segmentation_map(
     )
     seg[dry_rock_mask] = 3
 
-    # Grass stays default on habitable land
     return seg
 
 
@@ -352,9 +316,6 @@ def generate_texture_map(
     height_seed_map: np.ndarray,
     config: ProceduralMapConfig,
 ) -> np.ndarray:
-    """
-    RGB texture from segmentation map with terrain-aware variation.
-    """
     rng = np.random.default_rng(seed + 1000)
 
     h, w = segmentation_map.shape
@@ -392,10 +353,6 @@ def generate_texture_map(
 
 
 def save_segmentation_png(segmentation_map: np.ndarray, path: str | Path) -> None:
-    """
-    Save segmentation visualization:
-    0, 64, 128, 192, 255
-    """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
 

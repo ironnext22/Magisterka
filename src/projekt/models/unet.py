@@ -6,7 +6,6 @@ import torch.nn.functional as F
 
 
 class DoubleConv(nn.Module):
-    """Two convolution layers with ReLU activations."""
 
     def __init__(self, in_channels: int, out_channels: int) -> None:
         super().__init__()
@@ -22,7 +21,6 @@ class DoubleConv(nn.Module):
 
 
 class DownBlock(nn.Module):
-    """Downsampling block: max pool + double conv."""
 
     def __init__(self, in_channels: int, out_channels: int) -> None:
         super().__init__()
@@ -36,13 +34,6 @@ class DownBlock(nn.Module):
 
 
 class UpBlock(nn.Module):
-    """
-    Upsampling block with skip connection.
-
-    in_channels = channels of input tensor from previous decoder stage
-    skip_channels = channels from encoder skip connection
-    out_channels = channels after DoubleConv
-    """
 
     def __init__(
         self,
@@ -82,13 +73,6 @@ class UpBlock(nn.Module):
 
 
 class UNetTerrainModel(nn.Module):
-    """
-    U-Net for terrain heightmap prediction.
-
-    Input:  [B, in_channels, H, W]
-    Output: [B, out_channels, H, W]
-    """
-
     def __init__(self, in_channels: int = 4, out_channels: int = 1) -> None:
         super().__init__()
 

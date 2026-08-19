@@ -126,11 +126,6 @@ def get_sample_identifier(
     dataset: Dataset,
     subset_index: int,
 ) -> str:
-    """
-    Próbuje pobrać rzeczywisty identyfikator próbki.
-
-    Jeśli nie jest to możliwe, zwraca indeks próbki.
-    """
     if isinstance(dataset, Subset):
         original_index = int(dataset.indices[subset_index])
         source_dataset = dataset.dataset
@@ -150,7 +145,6 @@ def load_test_subset(
     full_dataset: Dataset,
     split_path: Path,
 ) -> Subset:
-    """Wczytuje niezależny zbiór testowy zapisany podczas treningu."""
     if not split_path.exists():
         raise FileNotFoundError(
             f"Nie znaleziono pliku podziału danych: {split_path}"
@@ -185,7 +179,6 @@ def load_model(
     model_config: ModelConfig,
     device: torch.device,
 ) -> torch.nn.Module:
-    """Tworzy model i ładuje checkpoint."""
     if not model_config.checkpoint_path.exists():
         raise FileNotFoundError(
             f"Nie znaleziono checkpointu modelu "
@@ -198,10 +191,6 @@ def load_model(
         model_config.checkpoint_path,
         map_location=device,
     )
-
-    # Obsługa checkpointów zapisanych jako:
-    # 1. sam state_dict,
-    # 2. słownik {"model_state_dict": ...}
     if (
         isinstance(state_dict, dict)
         and "model_state_dict" in state_dict
@@ -240,12 +229,6 @@ class ModelEvaluator:
         self.model = load_model(model_config, device)
 
     def warmup(self) -> None:
-        """
-        Rozgrzewka przed pomiarem czasu.
-
-        Pierwsze wywołania mogą obejmować inicjalizację CUDA,
-        alokację pamięci i dobór kerneli.
-        """
         if self.config.warmup_batches <= 0:
             return
 
@@ -270,7 +253,6 @@ class ModelEvaluator:
         synchronize_device(self.device)
 
     def evaluate(self) -> pd.DataFrame:
-        """Przeprowadza ewaluację modelu na wszystkich próbkach."""
         self.warmup()
 
         results: list[dict[str, float | int | str]] = []
@@ -452,7 +434,6 @@ def save_mse_ecdf(
 def calculate_summary(
     metrics: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Tworzy pełne statystyki dla każdego modelu."""
     metric_columns = [
         "mse",
         "psnr",
@@ -498,11 +479,6 @@ def calculate_summary(
 def create_compact_summary(
     summary: pd.DataFrame,
 ) -> pd.DataFrame:
-    """
-    Tworzy tabelę do wykorzystania w pracy:
-
-    Model | MSE mean±std | PSNR mean±std | SSIM mean±std | Time mean±std
-    """
     rows: list[dict[str, str]] = []
 
     for model_name in summary["model"].unique():
@@ -546,10 +522,6 @@ def create_compact_summary(
 def select_representative_samples(
     metrics: pd.DataFrame,
 ) -> list[int]:
-    """
-    Wybiera próbkę łatwą, typową i trudną na podstawie
-    średniego MSE wszystkich porównywanych modeli.
-    """
     sample_difficulty = (
         metrics.groupby("sample_index", as_index=False)["mse"]
         .mean()
@@ -765,12 +737,6 @@ def save_mean_comparison_chart(
     summary: pd.DataFrame,
     output_dir: Path,
 ) -> None:
-    """
-    Zapisuje osobny wykres średnich dla każdej metryki.
-
-    Osobne wykresy są czytelniejsze, ponieważ metryki mają
-    zupełnie inne skale.
-    """
     plot_config = {
         "mse": (
             "Średnia wartość MSE",
@@ -926,15 +892,6 @@ def create_prediction_comparison(
     output_path: Path,
     sample_indices: list[int],
 ) -> None:
-    """
-    Tworzy porównanie:
-
-    mapa referencyjna,
-    predykcja Baseline,
-    błąd Baseline,
-    predykcja U-Net,
-    błąd U-Net.
-    """
     valid_indices = [
         index
         for index in sample_indices

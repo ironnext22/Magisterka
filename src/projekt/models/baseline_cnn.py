@@ -5,12 +5,6 @@ import torch.nn as nn
 
 
 class BaselineTerrainCNN(nn.Module):
-    """
-    Simple encoder-decoder CNN for terrain heightmap prediction.
-
-    Input:  [B, in_channels, H, W]
-    Output: [B, 1, H, W]
-    """
 
     def __init__(self, in_channels: int = 4, out_channels: int = 1) -> None:
         super().__init__()

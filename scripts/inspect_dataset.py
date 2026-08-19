@@ -30,7 +30,6 @@ class SampleStats:
 
 
 def load_image(path: Path) -> np.ndarray:
-    """Load image as numpy array."""
     with Image.open(path) as img:
         return np.array(img)
 
@@ -44,7 +43,6 @@ def safe_dtype(arr: np.ndarray | None) -> str | None:
 
 
 def compute_sample_stats(row: pd.Series, data_root: Path) -> SampleStats:
-    """Compute validation and basic statistics for one sample."""
     sample_id = str(row["id"])
 
     height_path = data_root / str(row["height_rel"])
