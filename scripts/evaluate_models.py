@@ -379,6 +379,167 @@ class ModelEvaluator:
 # Statystyki
 # ============================================================
 
+def calculate_paired_bootstrap(
+    metrics: pd.DataFrame,
+    n_bootstrap: int = 10_000,
+    seed: int = 42,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Sparowane porównanie Baseline CNN i U-Net.
+
+    Dla każdej próbki obliczana jest różnica:
+        U-Net - Baseline CNN
+
+    Następnie wykonywany jest bootstrap na parach próbek
+    i wyznaczany 95% przedział ufności średniej różnicy.
+    """
+
+    metric_names = ["mse", "psnr", "ssim"]
+
+    baseline = (
+        metrics.loc[
+            metrics["model"] == "Baseline CNN",
+            ["sample_index", "sample_id", *metric_names],
+        ]
+        .copy()
+        .rename(
+            columns={
+                metric: f"{metric}_baseline"
+                for metric in metric_names
+            }
+        )
+    )
+
+    unet = (
+        metrics.loc[
+            metrics["model"] == "U-Net",
+            ["sample_index", "sample_id", *metric_names],
+        ]
+        .copy()
+        .rename(
+            columns={
+                metric: f"{metric}_unet"
+                for metric in metric_names
+            }
+        )
+    )
+
+    paired = baseline.merge(
+        unet,
+        on=["sample_index", "sample_id"],
+        how="inner",
+        validate="one_to_one",
+    )
+
+    if len(paired) != len(baseline) or len(paired) != len(unet):
+        raise ValueError(
+            "Nie udało się jednoznacznie sparować wszystkich "
+            "wyników Baseline CNN i U-Net."
+        )
+
+    print(
+        f"\nSparowano {len(paired)} próbek "
+        f"Baseline CNN ↔ U-Net."
+    )
+
+    rng = np.random.default_rng(seed)
+
+    summary_rows: list[dict[str, float | int | str | bool]] = []
+
+    for metric_name in metric_names:
+        baseline_values = paired[
+            f"{metric_name}_baseline"
+        ].to_numpy(dtype=np.float64)
+
+        unet_values = paired[
+            f"{metric_name}_unet"
+        ].to_numpy(dtype=np.float64)
+
+        finite_mask = (
+            np.isfinite(baseline_values)
+            & np.isfinite(unet_values)
+        )
+
+        baseline_values = baseline_values[finite_mask]
+        unet_values = unet_values[finite_mask]
+
+        differences = unet_values - baseline_values
+
+        paired.loc[
+            finite_mask,
+            f"{metric_name}_difference_unet_minus_baseline",
+        ] = differences
+
+        sample_count = len(differences)
+
+        if sample_count == 0:
+            continue
+
+        # Losujemy całe pary, a nie wartości z modeli osobno.
+        bootstrap_indices = rng.integers(
+            0,
+            sample_count,
+            size=(n_bootstrap, sample_count),
+        )
+
+        bootstrap_means = differences[
+            bootstrap_indices
+        ].mean(axis=1)
+
+        ci95_low, ci95_high = np.percentile(
+            bootstrap_means,
+            [2.5, 97.5],
+        )
+
+        mean_difference = float(np.mean(differences))
+        median_difference = float(np.median(differences))
+
+        if metric_name == "mse":
+            # Dla MSE mniejsza wartość jest lepsza.
+            unet_better = differences < 0
+            expected_direction = "negative"
+            supports_unet = ci95_high < 0
+        else:
+            # Dla PSNR i SSIM większa wartość jest lepsza.
+            unet_better = differences > 0
+            expected_direction = "positive"
+            supports_unet = ci95_low > 0
+
+        better_count = int(np.sum(unet_better))
+        better_percent = (
+            100.0 * better_count / sample_count
+        )
+
+        summary_rows.append(
+            {
+                "metric": metric_name,
+                "sample_count": sample_count,
+                "baseline_mean": float(
+                    np.mean(baseline_values)
+                ),
+                "unet_mean": float(
+                    np.mean(unet_values)
+                ),
+                "mean_difference_unet_minus_baseline":
+                    mean_difference,
+                "median_difference_unet_minus_baseline":
+                    median_difference,
+                "bootstrap_ci95_low": float(ci95_low),
+                "bootstrap_ci95_high": float(ci95_high),
+                "unet_better_count": better_count,
+                "unet_better_percent": better_percent,
+                "expected_direction": expected_direction,
+                "ci_excludes_zero_in_favour_of_unet":
+                    bool(supports_unet),
+                "bootstrap_iterations": n_bootstrap,
+                "bootstrap_seed": seed,
+            }
+        )
+
+    summary = pd.DataFrame(summary_rows)
+
+    return paired, summary
+
 def save_mse_ecdf(
     metrics: pd.DataFrame,
     output_path: Path,
@@ -1192,6 +1353,73 @@ def save_latex_comparison_table(
         encoding="utf-8",
     )
 
+def save_paired_bootstrap_latex(
+    paired_summary: pd.DataFrame,
+    output_path: Path,
+) -> None:
+    metric_labels = {
+        "mse": "MSE",
+        "psnr": "PSNR",
+        "ssim": "SSIM",
+    }
+
+    lines = [
+        "\\begin{table}[H]",
+        "\\centering",
+        "\\caption{Wyniki sparowanego bootstrapu dla różnic pomiędzy modelami U-Net i Baseline CNN.}",
+        "\\label{tab:paired_bootstrap}",
+        "\\begin{tabular}{lccc}",
+        "\\hline",
+        (
+            "\\textbf{Metryka} & "
+            "\\textbf{Średnia różnica} & "
+            "\\textbf{95\\% CI} & "
+            "\\textbf{U-Net lepszy [\\%]} \\\\"
+        ),
+        "\\hline",
+    ]
+
+    for _, row in paired_summary.iterrows():
+        metric_name = str(row["metric"])
+
+        mean_difference = float(
+            row["mean_difference_unet_minus_baseline"]
+        )
+
+        ci_low = float(row["bootstrap_ci95_low"])
+        ci_high = float(row["bootstrap_ci95_high"])
+        better_percent = float(row["unet_better_percent"])
+
+        if metric_name == "mse":
+            difference_text = f"{mean_difference:.6f}"
+            ci_text = f"[{ci_low:.6f}; {ci_high:.6f}]"
+        elif metric_name == "psnr":
+            difference_text = f"{mean_difference:.4f}"
+            ci_text = f"[{ci_low:.4f}; {ci_high:.4f}]"
+        else:
+            difference_text = f"{mean_difference:.4f}"
+            ci_text = f"[{ci_low:.4f}; {ci_high:.4f}]"
+
+        lines.append(
+            f"{metric_labels[metric_name]} & "
+            f"{difference_text} & "
+            f"{ci_text} & "
+            f"{better_percent:.1f}\\% \\\\"
+        )
+
+    lines.extend(
+        [
+            "\\hline",
+            "\\end{tabular}",
+            "\\end{table}",
+        ]
+    )
+
+    output_path.write_text(
+        "\n".join(lines),
+        encoding="utf-8",
+    )
+
 # ============================================================
 # Argumenty programu
 # ============================================================
@@ -1500,6 +1728,47 @@ def main() -> None:
     combined_metrics.to_csv(
         combined_metrics_path,
         index=False,
+    )
+
+    paired_metrics, paired_bootstrap_summary = (
+        calculate_paired_bootstrap(
+            metrics=combined_metrics,
+            n_bootstrap=10_000,
+            seed=42,
+        )
+    )
+
+    paired_metrics_path = (
+        output_root / "paired_metrics_per_sample.csv"
+    )
+
+    paired_metrics.to_csv(
+        paired_metrics_path,
+        index=False,
+    )
+
+    paired_bootstrap_path = (
+        output_root / "paired_bootstrap_summary.csv"
+    )
+
+    paired_bootstrap_summary.to_csv(
+        paired_bootstrap_path,
+        index=False,
+    )
+
+    save_paired_bootstrap_latex(
+        paired_summary=paired_bootstrap_summary,
+        output_path=output_root
+        / "paired_bootstrap_table.tex",
+    )
+
+    print("\n====================================")
+    print("SPAROWANE PORÓWNANIE MODELI")
+    print("====================================")
+    print(
+        paired_bootstrap_summary.to_string(
+            index=False
+        )
     )
 
     summary = calculate_summary(combined_metrics)
